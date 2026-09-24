@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inference Service Provider Evaluation Framework</title>
+<style>
+  :root {
+    --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0;
+    --text: #1e293b; --muted: #64748b;
+    --green: #16a34a; --yellow: #d97706; --red: #dc2626;
+    --blue: #2563eb; --teal: #0891b2; --purple: #7c3aed;
+    --orange: #ea580c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #1a1d27 0%, #2d3149 100%); color: #fff; padding: 48px 64px 40px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .header .sub { color: #94a3b8; font-size: 14px; margin-top: 8px; }
+  .header .meta { display: flex; gap: 32px; margin-top: 24px; flex-wrap: wrap; }
+  .header .meta-item { font-size: 13px; color: #cbd5e1; }
+  .header .meta-item strong { color: #fff; display: block; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 48px; }
+  section { margin-bottom: 48px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 24px; }
+  h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+  h4 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
+  .card-grid { display: grid; gap: 16px; }
+  .card-grid-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; color: var(--muted); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .pill-green { background: #dcfce7; color: #15803d; }
+  .pill-yellow { background: #fef3c7; color: #92400e; }
+  .pill-red { background: #fee2e2; color: #b91c1c; }
+  .pill-blue { background: #dbeafe; color: #1d4ed8; }
+  .pill-purple { background: #ede9fe; color: #6d28d9; }
+
+  /* Category weight badges */
+  .cat-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .cat-weight { background: var(--blue); color: #fff; border-radius: 6px; padding: 4px 12px; font-size: 13px; font-weight: 700; }
+  .cat-num { background: #1e293b; color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+
+  /* Scoring rubric table */
+  .score-1 { background: #fee2e2; }
+  .score-2 { background: #fef3c7; }
+  .score-3 { background: #fef9c3; }
+  .score-4 { background: #dcfce7; }
+  .score-5 { background: #bbf7d0; }
+  .score-label { font-weight: 700; font-size: 15px; }
+
+  /* Dealbreaker */
+  .dealbreaker { background: #fff1f2; border: 1px solid #fecaca; border-left: 4px solid var(--red); border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+  .dealbreaker-title { font-weight: 600; color: var(--red); font-size: 13px; }
+  .dealbreaker p { font-size: 13px; color: #7f1d1d; margin-top: 4px; }
+
+  /* Checklist */
+  .checklist-section { margin-bottom: 20px; }
+  .checklist-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .checklist-item:last-child { border-bottom: none; }
+  .check-box { flex: 0 0 18px; width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px; margin-top: 1px; }
+  .check-label { flex: 1; }
+  .check-label .tag { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+
+  /* Question bank */
+  .question { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .question:last-child { border-bottom: none; }
+  .question .q-num { font-weight: 700; color: var(--blue); margin-right: 8px; }
+  .question .q-tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; margin-left: 8px; }
+  .q-tag-tech { background: #dbeafe; color: #1d4ed8; }
+  .q-tag-sec  { background: #ede9fe; color: #6d28d9; }
+  .q-tag-biz  { background: #fef3c7; color: #92400e; }
+  .q-tag-ops  { background: #dcfce7; color: #15803d; }
+
+  /* Decision tiers */
+  .tier { border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; border: 1px solid; }
+  .tier-recommend   { background: #f0fdf4; border-color: #86efac; }
+  .tier-conditional { background: #fffbeb; border-color: #fde68a; }
+  .tier-defer       { background: #fff7ed; border-color: #fed7aa; }
+  .tier-reject      { background: #fff1f2; border-color: #fecaca; }
+  .tier-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .tier-recommend .tier-title   { color: var(--green); }
+  .tier-conditional .tier-title { color: #b45309; }
+  .tier-defer .tier-title       { color: var(--orange); }
+  .tier-reject .tier-title      { color: var(--red); }
+  .tier p { font-size: 13px; margin-bottom: 8px; }
+  .tier ul { font-size: 13px; padding-left: 20px; }
+  .tier ul li { margin-bottom: 4px; }
+
+  /* Scorecard template */
+  .score-row { display: grid; grid-template-columns: 200px 60px 1fr 60px; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .score-row:last-child { border-bottom: none; }
+  .score-row.total { font-weight: 700; border-top: 2px solid var(--border); margin-top: 4px; padding-top: 12px; }
+  .bar-wrap { background: #f1f5f9; border-radius: 99px; height: 8px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--blue); }
+
+  /* Info box */
+  .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid var(--blue); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; }
+  .warn-box { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid var(--yellow); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; }
+
+  .page-footer { background: #1a1d27; color: #6b7280; text-align: center; padding: 24px; font-size: 12px; margin-top: 48px; }
+  code { background: #f1f5f9; border-radius: 4px; padding: 1px 6px; font-size: 12px; font-family: monospace; }
+  .metric-list { list-style: none; padding: 0; }
+  .metric-list li { padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; gap: 8px; }
+  .metric-list li:last-child { border-bottom: none; }
+  .metric-list li::before { content: "→"; color: var(--blue); font-weight: 700; flex-shrink: 0; }
+
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: #fff !important; }
+    section { page-break-inside: avoid; }
+    .card { page-break-inside: avoid; }
+    .tier { page-break-inside: avoid; }
+    .dealbreaker { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Inference Service Provider Evaluation Framework</h1>
+  <div class="sub">Technical Due Diligence &amp; Service Quality Assessment</div>
+  <div class="meta">
+    <div class="meta-item"><strong>Owner</strong>AMD ISV Partnership Team</div>
+    <div class="meta-item"><strong>Version</strong>1.0</div>
+    <div class="meta-item"><strong>Date</strong>September 2026</div>
+    <div class="meta-item"><strong>Applies To</strong>Inference API Providers — Commercial Partnership Evaluation</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- PURPOSE -->
+<section>
+  <h2>Purpose &amp; Scope</h2>
+  <div class="info-box">
+    This framework standardizes how the AMD ISV Partnership team evaluates third-party inference API providers before recommending them to AMD partners or entering commercial agreements. It is <strong>provider-agnostic and model-agnostic</strong>, covering the full range of technical, security, commercial, and operational dimensions that determine whether a provider is production-ready for enterprise ISV workloads.
+  </div>
+  <div class="card-grid card-grid-3">
+    <div class="card">
+      <h3>Output</h3>
+      <p style="font-size:13px;color:var(--muted);">A weighted composite score (1–5), a decision tier classification (Recommend / Conditional / Defer / Reject), and a structured findings report with conditions and recommended next steps.</p>
+    </div>
+    <div class="card">
+      <h3>Timeline</h3>
+      <p style="font-size:13px;color:var(--muted);">Full evaluation: 3–5 business days. Fast-track (performance + cost only): 1 day with automated scripts. Security &amp; commercial review may require 1–2 additional weeks for vendor responses.</p>
+    </div>
+    <div class="card">
+      <h3>Prerequisites</h3>
+      <p style="font-size:13px;color:var(--muted);">API access with sufficient credit (≥$200 recommended), model IDs, pricing sheet, vendor contact for Q&amp;A, and NDA in place before sharing evaluation findings.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<section>
+  <h2>Evaluation Categories &amp; Weights</h2>
+
+  <div class="card" style="margin-bottom:24px;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Category</th><th>Weight</th><th>Rationale</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>1</strong></td><td>Inference Performance &amp; Latency</td><td><span class="pill pill-blue">25%</span></td><td>TTFT and throughput are the primary reason partners choose or reject a provider; directly affects end-user experience</td></tr>
+        <tr><td><strong>2</strong></td><td>Reliability &amp; Availability</td><td><span class="pill pill-blue">20%</span></td><td>Downtime and error rates have immediate revenue impact on partners running production applications</td></tr>
+        <tr><td><strong>3</strong></td><td>API Completeness &amp; Compatibility</td><td><span class="pill pill-blue">15%</span></td><td>Determines re-engineering cost to adopt the provider; OpenAI compatibility is the de facto standard</td></tr>
+        <tr><td><strong>4</strong></td><td>Security &amp; Compliance</td><td><span class="pill pill-blue">15%</span></td><td>Non-negotiable for enterprise partners in regulated industries; SOC 2 and data handling are board-level concerns</td></tr>
+        <tr><td><strong>5</strong></td><td>Cost Structure &amp; Commercial Terms</td><td><span class="pill pill-blue">12%</span></td><td>Total cost of ownership must be predictable; pricing transparency and volume flexibility affect ISV margin</td></tr>
+        <tr><td><strong>6</strong></td><td>Output Quality &amp; Safety</td><td><span class="pill pill-blue">8%</span></td><td>Factual accuracy, safety alignment, and output consistency determine partner liability exposure</td></tr>
+        <tr><td><strong>7</strong></td><td>Support &amp; Operations</td><td><span class="pill pill-blue">5%</span></td><td>Reflects long-term partnership viability; poor support is a leading indicator of churn risk</td></tr>
+        <tr style="font-weight:700;"><td></td><td>Total</td><td>100%</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Category 1 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">1</div>
+      <h3 style="margin:0;">Inference Performance &amp; Latency</h3>
+      <div class="cat-weight">25%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>TTFT p50 / p95 / p99 at c=1, 5, 10, 25, 50</li>
+          <li>Token generation speed (tok/s) p50 at each concurrency</li>
+          <li>End-to-end latency p50 / p99</li>
+          <li>Latency degradation ratio (p99 / p50) — tail behavior</li>
+          <li>Throughput at saturation (max stable RPS)</li>
+          <li>Cold-start penalty (first request after idle)</li>
+          <li>Streaming SSE first-byte vs. batch latency delta</li>
+        </ul>
+      </div>
+      <div>
+        <h4>ISV Target Thresholds</h4>
+        <table>
+          <thead><tr><th>Metric</th><th>Target</th><th>Acceptable</th></tr></thead>
+          <tbody>
+            <tr><td>TTFT p50 @ c=1</td><td>&lt; 300ms</td><td>&lt; 600ms</td></tr>
+            <tr><td>TTFT p99 @ c=1</td><td>&lt; 800ms</td><td>&lt; 2,000ms</td></tr>
+            <tr><td>TTFT p50 @ c=25</td><td>&lt; 800ms</td><td>&lt; 1,500ms</td></tr>
+            <tr><td>Tok/s p50 @ c=1</td><td>&gt; 80</td><td>&gt; 30</td></tr>
+            <tr><td>p99/p50 ratio</td><td>&lt; 2×</td><td>&lt; 4×</td></tr>
+            <tr><td>Error rate</td><td>0%</td><td>&lt; 0.5%</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px;">* Reasoning models: TTFT targets relax by ~2× due to thinking token overhead. Disclose to latency-sensitive partners.</p>
+      </div>
+    </div>
+    <h4 style="margin-top:16px;">Scoring Rubric</h4>
+    <table>
+      <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+      <tbody>
+        <tr class="score-5"><td class="score-label">5</td><td>TTFT p50 &lt; 300ms @ c=1; p99 &lt; 800ms; tok/s &gt; 80; p99/p50 &lt; 2×; 0% errors across all concurrency levels</td></tr>
+        <tr class="score-4"><td class="score-label">4</td><td>TTFT p50 &lt; 600ms @ c=1; p99 &lt; 2s; tok/s &gt; 30; &lt; 0.5% errors; graceful degradation under load</td></tr>
+        <tr class="score-3"><td class="score-label">3</td><td>TTFT p50 &lt; 1,000ms @ c=1; p99 spikes present but &lt; 5s; tok/s &gt; 15; &lt; 1% errors; noticeable degradation at c=25+</td></tr>
+        <tr class="score-2"><td class="score-label">2</td><td>TTFT p50 &gt; 1,000ms or p99 &gt; 5s; tok/s &lt; 15; error rate 1–3%; significant degradation under moderate load</td></tr>
+        <tr class="score-1"><td class="score-label">1</td><td>TTFT p50 &gt; 2,000ms; p99 &gt; 10s; frequent errors; unstable or unusable under concurrency</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Category 2 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">2</div>
+      <h3 style="margin:0;">Reliability &amp; Availability</h3>
+      <div class="cat-weight">20%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>Observed availability over soak test (≥ 2h @ steady RPS)</li>
+          <li>Error rate (4xx / 5xx) during soak</li>
+          <li>Published SLA uptime percentage</li>
+          <li>P99 latency drift over time (hourly buckets)</li>
+          <li>Rate-limit behavior — graceful 429 vs. silent drop</li>
+          <li>Recovery time after induced error</li>
+          <li>Status page freshness and incident history (90 days)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>ISV Target Thresholds</h4>
+        <table>
+          <thead><tr><th>Metric</th><th>Target</th><th>Acceptable</th></tr></thead>
+          <tbody>
+            <tr><td>Observed availability</td><td>≥ 99.9%</td><td>≥ 99.5%</td></tr>
+            <tr><td>Error rate (soak)</td><td>&lt; 0.1%</td><td>&lt; 0.5%</td></tr>
+            <tr><td>Published SLA</td><td>99.9%</td><td>99.5%</td></tr>
+            <tr><td>SLA with penalties</td><td>Required</td><td>Negotiable</td></tr>
+            <tr><td>Latency drift (hourly)</td><td>&lt; 10%</td><td>&lt; 25%</td></tr>
+            <tr><td>Incident resolution</td><td>&lt; 1h P1</td><td>&lt; 4h P1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <h4 style="margin-top:16px;">Scoring Rubric</h4>
+    <table>
+      <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+      <tbody>
+        <tr class="score-5"><td class="score-label">5</td><td>≥ 99.9% observed; &lt; 0.1% errors; published SLA with financial penalties; status page live; &lt; 1h P1 resolution; no significant incidents in 90 days</td></tr>
+        <tr class="score-4"><td class="score-label">4</td><td>≥ 99.5% observed; &lt; 0.5% errors; SLA published (penalties negotiable); status page exists; &lt; 4h P1 resolution</td></tr>
+        <tr class="score-3"><td class="score-label">3</td><td>≥ 99.0% observed; &lt; 1% errors; verbal SLA commitment; some incident history but resolved; status page incomplete</td></tr>
+        <tr class="score-2"><td class="score-label">2</td><td>98–99% observed; 1–3% errors; no formal SLA; rate limiting opaque; multiple recent incidents</td></tr>
+        <tr class="score-1"><td class="score-label">1</td><td>&lt; 98% availability; &gt; 3% errors; no SLA; frequent unexplained failures; no status visibility</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Category 3 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">3</div>
+      <h3 style="margin:0;">API Completeness &amp; Compatibility</h3>
+      <div class="cat-weight">15%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>OpenAI API compatibility (<code>/v1/chat/completions</code> schema)</li>
+          <li>Streaming SSE support (<code>stream: true</code>)</li>
+          <li>Tool / function calling support with JSON schema</li>
+          <li>Structured output / JSON mode</li>
+          <li>System prompt support</li>
+          <li>Token usage reporting accuracy (prompt / completion / cached)</li>
+          <li>Context window size (tokens)</li>
+          <li>Model versioning / pinning support</li>
+          <li>Batch API availability</li>
+          <li>SDK / client library availability</li>
+          <li>Documentation completeness and accuracy</li>
+          <li>Sandbox / playground environment</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Compatibility Checklist</h4>
+        <table>
+          <thead><tr><th>Feature</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Chat completions endpoint</td><td><span class="pill pill-green">Required</span></td></tr>
+            <tr><td>Streaming SSE</td><td><span class="pill pill-green">Required</span></td></tr>
+            <tr><td>Tool / function calling</td><td><span class="pill pill-yellow">Recommended</span></td></tr>
+            <tr><td>JSON mode / structured output</td><td><span class="pill pill-yellow">Recommended</span></td></tr>
+            <tr><td>Usage token reporting</td><td><span class="pill pill-green">Required</span></td></tr>
+            <tr><td>Model version pinning</td><td><span class="pill pill-yellow">Recommended</span></td></tr>
+            <tr><td>Prompt caching</td><td><span class="pill pill-yellow">Recommended</span></td></tr>
+            <tr><td>Batch API</td><td><span class="pill pill-blue">Optional</span></td></tr>
+            <tr><td>Embeddings endpoint</td><td><span class="pill pill-blue">Optional</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <h4 style="margin-top:16px;">Scoring Rubric</h4>
+    <table>
+      <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+      <tbody>
+        <tr class="score-5"><td class="score-label">5</td><td>Full OpenAI drop-in compatible; streaming, tool calling, JSON mode, accurate token reporting, model pinning, SDK, and complete docs</td></tr>
+        <tr class="score-4"><td class="score-label">4</td><td>Compatible for core use cases; streaming works; tool calling present but may have edge-case gaps; docs mostly complete</td></tr>
+        <tr class="score-3"><td class="score-label">3</td><td>Chat completions and streaming work; tool calling unverified or partial; token reporting present; docs thin</td></tr>
+        <tr class="score-2"><td class="score-label">2</td><td>Non-standard API requiring adapter layer; streaming unreliable; token reporting inaccurate; poor docs</td></tr>
+        <tr class="score-1"><td class="score-label">1</td><td>Significant incompatibility; no streaming; missing core fields; undocumented; requires major integration effort</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Category 4 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">4</div>
+      <h3 style="margin:0;">Security &amp; Compliance</h3>
+      <div class="cat-weight">15%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>Data privacy policy: no training on customer prompts/responses</li>
+          <li>Data retention period and deletion policy</li>
+          <li>Encryption in transit (TLS 1.2+) and at rest (AES-256)</li>
+          <li>SSL certificate validity and standard CA chain</li>
+          <li>SOC 2 Type II certification (or equivalent)</li>
+          <li>ISO 27001 / CSA STAR certification</li>
+          <li>GDPR / CCPA compliance declaration</li>
+          <li>Model isolation (shared inference vs. dedicated)</li>
+          <li>Audit logging and access controls</li>
+          <li>Penetration testing cadence</li>
+          <li>Incident notification SLA</li>
+          <li>HIPAA / FedRAMP (for regulated verticals)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Scoring Rubric</h4>
+        <table>
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr class="score-5"><td class="score-label">5</td><td>SOC 2 Type II + ISO 27001; no training on customer data (contractual); TLS 1.3; standard CA; dedicated inference option; GDPR DPA available; annual pen test</td></tr>
+            <tr class="score-4"><td class="score-label">4</td><td>SOC 2 Type II in progress or completed; no training on data (policy); TLS 1.2+; GDPR compliant; audit logs available</td></tr>
+            <tr class="score-3"><td class="score-label">3</td><td>SOC 2 Type I or self-attestation; no training policy stated but not contractual; standard TLS; GDPR partially addressed</td></tr>
+            <tr class="score-2"><td class="score-label">2</td><td>No certifications; limited privacy policy; SSL issues; shared-only inference; data handling unclear</td></tr>
+            <tr class="score-1"><td class="score-label">1</td><td>No security documentation; may train on customer data; non-standard TLS; unsuitable for any enterprise use</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category 5 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">5</div>
+      <h3 style="margin:0;">Cost Structure &amp; Commercial Terms</h3>
+      <div class="cat-weight">12%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>Input / output token price vs. comparable providers (GPT-4o benchmark)</li>
+          <li>Cached token pricing (prompt cache hit rate potential)</li>
+          <li>Reasoning token billing transparency (included in output?)</li>
+          <li>Volume discount tiers and thresholds</li>
+          <li>Rate limit tiers (RPM / TPM) per plan</li>
+          <li>Overage handling (hard cap vs. throttle vs. auto-upgrade)</li>
+          <li>Billing granularity (per-token vs. per-request vs. per-minute)</li>
+          <li>Free trial / sandbox credit availability</li>
+          <li>Contract flexibility (monthly vs. annual; minimum commits)</li>
+          <li>Refund / credit policy for downtime</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Scoring Rubric</h4>
+        <table>
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr class="score-5"><td class="score-label">5</td><td>&gt; 50% cheaper than GPT-4o equivalent; published volume tiers; transparent rate limits; month-to-month available; clear overage policy; SLA credits</td></tr>
+            <tr class="score-4"><td class="score-label">4</td><td>20–50% cheaper; volume discounts negotiable; rate limits documented; billing transparent; reasonable contract terms</td></tr>
+            <tr class="score-3"><td class="score-label">3</td><td>Competitive or at-par pricing; some volume flexibility; rate limits partially documented; standard contract</td></tr>
+            <tr class="score-2"><td class="score-label">2</td><td>Above-market pricing; rate limits undocumented; opaque billing; annual commit required; no SLA credits</td></tr>
+            <tr class="score-1"><td class="score-label">1</td><td>Significantly above market; hidden fees; no pricing transparency; punitive contract terms</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category 6 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">6</div>
+      <h3 style="margin:0;">Output Quality &amp; Safety</h3>
+      <div class="cat-weight">8%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>Factual accuracy (knowledge base Q&amp;A — 10 questions)</li>
+          <li>Instruction following (format, length, keyword compliance)</li>
+          <li>Output consistency / semantic overlap (same prompt × 3 runs)</li>
+          <li>Safety refusal rate (5 adversarial prompts)</li>
+          <li>Refusal phrasing consistency (keyword-detectable)</li>
+          <li>Hallucination rate on domain-specific tasks</li>
+          <li>Reasoning quality (chain-of-thought coherence)</li>
+          <li>Long-context coherence (if &gt; 32K context window)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Scoring Rubric</h4>
+        <table>
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr class="score-5"><td class="score-label">5</td><td>≥ 90% factual accuracy; 5/5 safety refusals; semantic overlap &gt; 0.75; strong instruction following; consistent refusal phrasing</td></tr>
+            <tr class="score-4"><td class="score-label">4</td><td>80–90% factual; 4–5/5 safety; semantic overlap 0.60–0.75; good instruction following with minor gaps</td></tr>
+            <tr class="score-3"><td class="score-label">3</td><td>70–80% factual; 3–4/5 safety; semantic overlap 0.40–0.60; instruction following adequate; phrasing varies</td></tr>
+            <tr class="score-2"><td class="score-label">2</td><td>60–70% factual; ≤ 3/5 safety; semantic overlap &lt; 0.40; frequent instruction failures</td></tr>
+            <tr class="score-1"><td class="score-label">1</td><td>&lt; 60% factual; &lt; 2/5 safety refusals; unreliable output; not suitable for customer-facing use</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category 7 -->
+  <div class="card">
+    <div class="cat-header">
+      <div class="cat-num">7</div>
+      <h3 style="margin:0;">Support &amp; Operations</h3>
+      <div class="cat-weight">5%</div>
+    </div>
+    <div class="card-grid card-grid-2">
+      <div>
+        <h4>Key Metrics</h4>
+        <ul class="metric-list">
+          <li>Response time to technical support tickets (P1 / P2 / P3)</li>
+          <li>Dedicated account / technical contact availability</li>
+          <li>Status page with real-time incident tracking</li>
+          <li>Proactive incident notification (email / webhook)</li>
+          <li>Developer documentation completeness</li>
+          <li>Changelog / release notes cadence</li>
+          <li>Model deprecation policy and advance notice period</li>
+          <li>Roadmap transparency and feature request process</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Scoring Rubric</h4>
+        <table>
+          <thead><tr><th>Score</th><th>Criteria</th></tr></thead>
+          <tbody>
+            <tr class="score-5"><td class="score-label">5</td><td>Dedicated TAM; &lt; 1h P1 SLA; proactive notifications; live status page; full docs; 90-day deprecation notice</td></tr>
+            <tr class="score-4"><td class="score-label">4</td><td>Named contact; &lt; 4h P1; status page; good docs; reasonable deprecation notice</td></tr>
+            <tr class="score-3"><td class="score-label">3</td><td>Shared support; &lt; 24h P1; status page exists but lags; docs adequate; deprecation policy unclear</td></tr>
+            <tr class="score-2"><td class="score-label">2</td><td>Email-only support; slow response; no status page; thin docs; no deprecation notice</td></tr>
+            <tr class="score-1"><td class="score-label">1</td><td>No formal support; community-only; no docs; silent deprecations</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEALBREAKERS -->
+<section>
+  <h2>Hard Dealbreakers — Automatic Disqualification</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Any single item below results in a <strong>Reject</strong> recommendation regardless of scores in other categories. These are not negotiable.</p>
+
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 Trains on customer prompts or responses</div>
+    <p>Provider retains prompt/response data and uses it for model training without explicit opt-out. Immediate data privacy and IP exposure risk for ISV customers. Must be prohibited contractually.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 Observed error rate &gt; 3% at baseline concurrency</div>
+    <p>Error rate above 3% at c=1 or c=5 during a clean load test indicates fundamental service stability issues. Not acceptable for any production ISV workload.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 No data privacy or data retention policy</div>
+    <p>Absence of a written data handling policy makes GDPR / CCPA compliance impossible. Cannot be recommended to any customer in a regulated industry or with EU users.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 Non-standard or self-signed TLS certificate</div>
+    <p>SSL certificate that fails standard OS / browser trust stores (e.g., Windows, macOS, common Linux distributions) without workarounds. Blocks enterprise integration and signals poor operational maturity.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 Safety refusal rate &lt; 2/5 on standard adversarial prompt set</div>
+    <p>Fewer than 2 out of 5 hardcoded adversarial prompts refused indicates a model safety alignment gap that creates direct liability for ISV customers building consumer-facing products.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 No published rate limits with no commitment to disclose</div>
+    <p>Undisclosed and uncommitted rate limits mean partners cannot capacity plan. Silent throttling or invisible hard caps will cause unpredictable production outages.</p>
+  </div>
+  <div class="dealbreaker">
+    <div class="dealbreaker-title">🚫 No path to SOC 2 certification within 12 months</div>
+    <p>For enterprise AMD ISV partners in financial services, healthcare, or government, SOC 2 Type II is required by their own compliance teams. Providers without a credible certification timeline cannot be recommended to these segments.</p>
+  </div>
+</section>
+
+<!-- DUE DILIGENCE CHECKLIST -->
+<section>
+  <h2>Technical Due Diligence Checklist</h2>
+  <div class="card-grid card-grid-2">
+
+    <div class="card">
+      <h3>API &amp; Integration</h3>
+      <div class="checklist-section">
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">OpenAI-compatible <code>/v1/chat/completions</code> endpoint verified <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Streaming SSE tested and producing correct <code>data:</code> chunks <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Tool / function calling tested with a sample schema <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Token usage fields (<code>prompt_tokens</code>, <code>completion_tokens</code>) verified accurate <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Prompt caching API confirmed and cache hit behavior verified <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Reasoning token billing structure documented (if reasoning model) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Model IDs confirmed — stable vs. aliased (e.g., "latest") <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Context window size documented and verified <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">SSL certificate validated from Linux, Windows, and macOS <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Rate limit headers (<code>x-ratelimit-*</code>) present in responses <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">429 response includes <code>retry-after</code> header <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Batch API availability confirmed <span class="tag">DOC</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Security &amp; Compliance</h3>
+      <div class="checklist-section">
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Data processing agreement (DPA) reviewed and signed <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">No-training-on-customer-data clause confirmed contractually <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Data retention period and deletion process documented <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">SOC 2 Type II report (or Type I + roadmap) obtained <span class="tag">AUDIT</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">TLS version ≥ 1.2 confirmed; certificate CA is standard <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Encryption at rest policy documented <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">GDPR compliance declaration / DPA reviewed <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Shared vs. dedicated inference infrastructure clarified <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Subprocessor list reviewed and accepted <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Penetration test report (last 12 months) reviewed <span class="tag">AUDIT</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Security incident notification timeframe confirmed (&lt; 72h) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">HIPAA BAA availability confirmed (if healthcare partners) <span class="tag">LEGAL</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Commercial &amp; SLA</h3>
+      <div class="checklist-section">
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Published SLA uptime % reviewed and compared to observed availability <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">SLA financial penalties / service credits confirmed in contract <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Rate limits per tier documented in writing (RPM / TPM / concurrent) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Volume discount thresholds and rates documented <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Overage policy documented (auto-upgrade vs. hard cap vs. throttle) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Contract term and termination clause reviewed <span class="tag">LEGAL</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Pricing lock-in period confirmed <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Reseller / OEM pricing terms confirmed for AMD partner program <span class="tag">LEGAL</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Operations &amp; Reliability</h3>
+      <div class="checklist-section">
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Status page URL confirmed and tested for accuracy <span class="tag">TEST</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">90-day incident history reviewed <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Support ticket SLA (P1 / P2 / P3) documented and tested <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Dedicated technical account contact confirmed <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Model deprecation policy confirmed (advance notice period) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Geographic region availability documented (US / EU / APAC) <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Multi-region / failover capability confirmed <span class="tag">DOC</span></div></div>
+        <div class="checklist-item"><div class="check-box"></div><div class="check-label">Changelog / release notes process reviewed <span class="tag">DOC</span></div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- QUESTION BANK -->
+<section>
+  <h2>Vendor Interview Question Bank</h2>
+  <div class="card">
+    <h3>Technical Questions</h3>
+    <div class="question"><span class="q-num">T1</span>What are your published rate limits (RPM / TPM / concurrent requests) at each pricing tier, and can we get them in writing as part of the contract? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T2</span>Are all models on shared or dedicated infrastructure? Is a dedicated deployment option available, and at what cost? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T3</span>How do you handle prompt caching? What is the cache TTL, and how is cache hit rate surfaced in the API response? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T4</span>For reasoning models, are reasoning tokens billed at output token rates? Are they included in <code>completion_tokens</code> or tracked separately? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T5</span>What is your model versioning and pinning strategy? If we pin to a specific model version, how long is it guaranteed to remain available? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T6</span>Have you tested and validated your SSL/TLS certificate chain against Windows, macOS, and standard Linux trust stores? Are there any known compatibility issues? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T7</span>What is your p99 TTFT at 50 concurrent requests under normal operating conditions, and do you have benchmarks to share? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T8</span>Do you support tool / function calling with OpenAI-compatible JSON schema? Are there known gaps vs. the OpenAI spec? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T9</span>What is the geographic distribution of your inference infrastructure? Can traffic be pinned to a specific region for data residency requirements? <span class="q-tag q-tag-tech">TECH</span></div>
+    <div class="question"><span class="q-num">T10</span>What is your capacity planning model? How do you handle traffic spikes and what is the auto-scaling response time? <span class="q-tag q-tag-tech">TECH</span></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Security &amp; Compliance Questions</h3>
+    <div class="question"><span class="q-num">S1</span>Do you train your models on customer prompts or API responses? Is this committed contractually as a prohibition? <span class="q-tag q-tag-sec">SECURITY</span></div>
+    <div class="question"><span class="q-num">S2</span>What is your data retention period for API logs and prompt/response data? How do customers request deletion? <span class="q-tag q-tag-sec">SECURITY</span></div>
+    <div class="question"><span class="q-num">S3</span>Do you have SOC 2 Type II certification? If not, what is your target date and who is your auditor? <span class="q-tag q-tag-sec">SECURITY</span></div>
+    <div class="question"><span class="q-num">S4</span>Can you provide your most recent penetration test executive summary? How frequently do you conduct pen tests? <span class="q-tag q-tag-sec">SECURITY</span></div>
+    <div class="question"><span class="q-num">S5</span>What is your security incident notification SLA? Have you had any data breaches or security incidents in the last 24 months? <span class="q-tag q-tag-sec">SECURITY</span></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Business &amp; Commercial Questions</h3>
+    <div class="question"><span class="q-num">B1</span>What financial penalties or service credits apply when you miss your published SLA? Is there a cap on credits? <span class="q-tag q-tag-biz">BUSINESS</span></div>
+    <div class="question"><span class="q-num">B2</span>What volume discount thresholds are available, and can pricing be locked in for 12–24 months? <span class="q-tag q-tag-biz">BUSINESS</span></div>
+    <div class="question"><span class="q-num">B3</span>Do you offer a reseller or OEM pricing structure for AMD partners building products on your API? <span class="q-tag q-tag-biz">BUSINESS</span></div>
+    <div class="question"><span class="q-num">B4</span>What is your company's funding status and runway? Are there any planned ownership changes or acquisitions? <span class="q-tag q-tag-biz">BUSINESS</span></div>
+    <div class="question"><span class="q-num">B5</span>What is your 12-month roadmap for new models, API features, and infrastructure? What is your release cadence? <span class="q-tag q-tag-biz">BUSINESS</span></div>
+  </div>
+</section>
+
+<!-- SCORECARD TEMPLATE -->
+<section>
+  <h2>Evaluation Scorecard Template</h2>
+  <div class="card">
+    <div class="warn-box">Complete one scorecard per provider. Scores are 1–5; weighted score = Σ(score × weight). Final recommendation determined by weighted score AND dealbreaker check.</div>
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Weight</th><th>Raw Score (1–5)</th><th>Weighted Score</th><th>Key Finding</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1. Inference Performance &amp; Latency</td><td>25%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>2. Reliability &amp; Availability</td><td>20%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>3. API Completeness &amp; Compatibility</td><td>15%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>4. Security &amp; Compliance</td><td>15%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>5. Cost Structure &amp; Commercial Terms</td><td>12%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>6. Output Quality &amp; Safety</td><td>8%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr><td>7. Support &amp; Operations</td><td>5%</td><td style="color:var(--muted);">___ / 5</td><td style="color:var(--muted);">___</td><td></td></tr>
+        <tr style="font-weight:700;background:#f8fafc;"><td>Total Weighted Score</td><td>100%</td><td>—</td><td style="color:var(--blue);">___ / 5.0</td><td></td></tr>
+        <tr style="font-weight:700;background:#f8fafc;"><td>Dealbreakers Triggered</td><td colspan="3">Yes / No — list:</td><td></td></tr>
+        <tr style="font-weight:700;background:#f8fafc;"><td>Decision Tier</td><td colspan="3" style="color:var(--blue);">Recommend / Conditional / Defer / Reject</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- DECISION TIERS -->
+<section>
+  <h2>Decision Tiers</h2>
+
+  <div class="tier tier-recommend">
+    <div class="tier-title">✅ Recommend</div>
+    <p><strong>Threshold:</strong> Weighted score ≥ 4.0 AND zero dealbreakers AND no category below 3.0</p>
+    <ul>
+      <li>Provider meets or exceeds enterprise-grade standards across all dimensions</li>
+      <li>Safe to recommend to AMD ISV partners for production workloads</li>
+      <li>Include in AMD partner marketplace or preferred provider list</li>
+      <li>Standard commercial agreement; proceed to procurement</li>
+    </ul>
+  </div>
+
+  <div class="tier tier-conditional">
+    <div class="tier-title">⚠ Recommend with Conditions</div>
+    <p><strong>Threshold:</strong> Weighted score 3.0–3.9 AND zero dealbreakers AND no more than one category below 2.5</p>
+    <ul>
+      <li>Provider is viable but has specific gaps that must be addressed</li>
+      <li>Document each condition with a resolution timeline and owner</li>
+      <li>Recommend only for specific use cases that avoid the gap areas</li>
+      <li>Require written commitment to resolve conditions before expanding partnership</li>
+      <li>Re-evaluate in 90 days after conditions are addressed</li>
+    </ul>
+  </div>
+
+  <div class="tier tier-defer">
+    <div class="tier-title">⏸ Defer</div>
+    <p><strong>Threshold:</strong> Weighted score 2.0–2.9 OR zero dealbreakers but two+ categories below 2.5</p>
+    <ul>
+      <li>Provider shows promise but is not mature enough for enterprise recommendation today</li>
+      <li>Document specific gaps and re-engage when provider can demonstrate improvement</li>
+      <li>May recommend for internal / sandbox use only — not for customer-facing AMD partner products</li>
+      <li>Schedule re-evaluation in 6 months with defined criteria for advancement to Conditional</li>
+    </ul>
+  </div>
+
+  <div class="tier tier-reject">
+    <div class="tier-title">🚫 Reject</div>
+    <p><strong>Threshold:</strong> Any dealbreaker triggered OR weighted score &lt; 2.0</p>
+    <ul>
+      <li>Do not recommend under any circumstances given current state</li>
+      <li>Document dealbreaker(s) and share feedback with provider if relationship permits</li>
+      <li>Can re-open evaluation only if provider resolves all dealbreakers and submits evidence</li>
+      <li>Minimum 6-month waiting period before re-evaluation</li>
+    </ul>
+  </div>
+</section>
+
+<!-- TEST SCRIPTS REFERENCE -->
+<section>
+  <h2>Automated Test Scripts Reference</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Script</th><th>Category</th><th>What It Measures</th><th>Runtime</th></tr></thead>
+      <tbody>
+        <tr><td><code>perf_test.py</code></td><td>Performance</td><td>TTFT p50/p95/p99, tok/s, error rate across concurrency levels (c=1,5,10,25,50); streaming SSE</td><td>~30 min</td></tr>
+        <tr><td><code>accuracy_test.py</code></td><td>Quality &amp; Safety</td><td>Factuality (10 Q&amp;A), instruction following (5 tasks), safety refusals (5 adversarial prompts), semantic consistency</td><td>~10 min</td></tr>
+        <tr><td><code>cost_estimator.py</code></td><td>Cost</td><td>Per-request and monthly cost vs. GPT-4o, GPT-4o-mini, Claude Sonnet/Haiku across 3 workload profiles</td><td>~5 min</td></tr>
+        <tr><td><code>soak_test.py</code></td><td>Reliability</td><td>Availability, error rate, hourly latency drift over 2–24h @ steady RPS</td><td>2–24h</td></tr>
+      </tbody>
+    </table>
+    <div class="info-box" style="margin-top:16px;">
+      <strong>GitHub Actions Integration:</strong> All scripts are designed to run as a parallel CI/CD workflow. The <code>MANGOBOOST_API_KEY</code> (or equivalent) is stored as a repository secret. The report job runs after all test jobs complete and aggregates results into a single HTML report. See <code>.github/workflows/mangoboost_eval.yml</code> as a reference implementation.
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div class="page-footer">
+  AMD ISV Partnership Team — Inference Provider Evaluation Framework v1.0 — Confidential
+</div>
+
+</body>
+</html>
