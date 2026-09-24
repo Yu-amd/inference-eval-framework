@@ -1,0 +1,326 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Inference Provider Evaluation Framework — Reusable Workflow
+#
+# This is the CALLED workflow. It is triggered by another repo's workflow via:
+#
+#   jobs:
+#     evaluate:
+#       uses: Yu-amd/inference-eval-framework/.github/workflows/eval.yml@main
+#       with:
+#         base-url: https://api.provider.io/v1
+#         model: model-id
+#         provider-name: Acme Inference
+#         input-cost-per-1m: 1.50
+#         output-cost-per-1m: 3.00
+#         run-soak: true
+#         soak-duration-hours: 2
+#       secrets:
+#         api-key: ${{ secrets.API_KEY }}
+#
+# It can also be triggered manually via workflow_dispatch for testing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Evaluate Inference Provider
+
+on:
+  workflow_call:
+    inputs:
+      base-url:
+        description: "Provider API base URL (e.g. https://api.provider.io/v1)"
+        type: string
+        required: true
+      model:
+        description: "Model ID to evaluate"
+        type: string
+        required: true
+      provider-name:
+        description: "Human-readable provider name (used in report title)"
+        type: string
+        required: false
+        default: "Inference Provider"
+      input-cost-per-1m:
+        description: "Input token price per 1M tokens (USD)"
+        type: string
+        required: false
+        default: "0"
+      output-cost-per-1m:
+        description: "Output token price per 1M tokens (USD)"
+        type: string
+        required: false
+        default: "0"
+      concurrency-levels:
+        description: "Space-separated concurrency levels for perf test"
+        type: string
+        required: false
+        default: "1 5 10 25"
+      iterations:
+        description: "Requests per concurrency level in perf test"
+        type: string
+        required: false
+        default: "50"
+      run-soak:
+        description: "Whether to run the soak test"
+        type: boolean
+        required: false
+        default: false
+      soak-duration-hours:
+        description: "Soak test duration in hours"
+        type: string
+        required: false
+        default: "2"
+      soak-rps:
+        description: "Soak test requests per second"
+        type: string
+        required: false
+        default: "2"
+    secrets:
+      api-key:
+        description: "API key for the inference provider"
+        required: true
+    outputs:
+      report-url:
+        description: "URL to download the evaluation report artifact"
+        value: ${{ jobs.report.outputs.artifact-url }}
+
+  workflow_dispatch:
+    inputs:
+      base-url:
+        description: "Provider API base URL"
+        required: true
+      model:
+        description: "Model ID"
+        required: true
+      provider-name:
+        description: "Provider name (for report)"
+        required: false
+        default: "Inference Provider"
+      input-cost-per-1m:
+        description: "Input token price per 1M USD"
+        required: false
+        default: "0"
+      output-cost-per-1m:
+        description: "Output token price per 1M USD"
+        required: false
+        default: "0"
+      concurrency-levels:
+        description: "Space-separated concurrency levels"
+        required: false
+        default: "1 5 10 25"
+      iterations:
+        description: "Iterations per concurrency level"
+        required: false
+        default: "50"
+      run-soak:
+        description: "Run soak test? (true/false)"
+        required: false
+        default: "false"
+      soak-duration-hours:
+        description: "Soak duration (hours)"
+        required: false
+        default: "2"
+      soak-rps:
+        description: "Soak RPS"
+        required: false
+        default: "2"
+
+env:
+  API_KEY: ${{ secrets.api-key || secrets.API_KEY }}
+
+jobs:
+  # ── 1. Performance ────────────────────────────────────────────────────────
+  performance:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Run performance test
+        run: |
+          python scripts/perf_test.py \
+            --base-url "${{ inputs.base-url }}" \
+            --api-key "${{ env.API_KEY }}" \
+            --model "${{ inputs.model }}" \
+            --concurrency ${{ inputs.concurrency-levels }} \
+            --iterations ${{ inputs.iterations }} \
+            --output results/performance/perf_results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results
+          path: results/performance/
+
+  # ── 2. Accuracy & Safety ──────────────────────────────────────────────────
+  accuracy:
+    name: Accuracy & Safety Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Run accuracy test
+        run: |
+          python scripts/accuracy_test.py \
+            --base-url "${{ inputs.base-url }}" \
+            --api-key "${{ env.API_KEY }}" \
+            --model "${{ inputs.model }}" \
+            --output results/accuracy/accuracy_results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accuracy-results
+          path: results/accuracy/
+
+  # ── 3. Cost Modeling ──────────────────────────────────────────────────────
+  cost:
+    name: Cost Modeling
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Run cost estimator
+        run: |
+          python scripts/cost_estimator.py \
+            --base-url "${{ inputs.base-url }}" \
+            --api-key "${{ env.API_KEY }}" \
+            --model "${{ inputs.model }}" \
+            --input-cost-per-1m ${{ inputs.input-cost-per-1m }} \
+            --output-cost-per-1m ${{ inputs.output-cost-per-1m }} \
+            --output results/cost/cost_results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cost-results
+          path: results/cost/
+
+  # ── 4. Soak Test (optional) ───────────────────────────────────────────────
+  soak:
+    name: Reliability Soak Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    if: ${{ inputs.run-soak == true || inputs.run-soak == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Run soak test
+        run: |
+          python scripts/soak_test.py \
+            --base-url "${{ inputs.base-url }}" \
+            --api-key "${{ env.API_KEY }}" \
+            --model "${{ inputs.model }}" \
+            --rps ${{ inputs.soak-rps }} \
+            --duration-hours ${{ inputs.soak-duration-hours }} \
+            --output results/reliability/soak_results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reliability-results
+          path: results/reliability/
+
+  # ── 5. Report ─────────────────────────────────────────────────────────────
+  report:
+    name: Generate Report
+    runs-on: ubuntu-latest
+    needs: [performance, accuracy, cost]
+    if: always()
+    outputs:
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Download performance results
+        uses: actions/download-artifact@v4
+        with:
+          name: performance-results
+          path: results/performance/
+        continue-on-error: true
+
+      - name: Download accuracy results
+        uses: actions/download-artifact@v4
+        with:
+          name: accuracy-results
+          path: results/accuracy/
+        continue-on-error: true
+
+      - name: Download cost results
+        uses: actions/download-artifact@v4
+        with:
+          name: cost-results
+          path: results/cost/
+        continue-on-error: true
+
+      - name: Download soak results
+        uses: actions/download-artifact@v4
+        with:
+          name: reliability-results
+          path: results/reliability/
+        continue-on-error: true
+
+      - name: Generate HTML report
+        run: |
+          python scripts/generate_report.py \
+            --results-dir results \
+            --provider-name "${{ inputs.provider-name }}" \
+            --model "${{ inputs.model }}" \
+            --base-url "${{ inputs.base-url }}" \
+            --input-cost "${{ inputs.input-cost-per-1m }}" \
+            --output-cost "${{ inputs.output-cost-per-1m }}" \
+            --output report/evaluation_report.html \
+            --date "$(date +%Y-%m-%d)"
+
+      - name: Upload report
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: report/evaluation_report.html

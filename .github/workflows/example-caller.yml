@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# EXAMPLE CALLER WORKFLOW
+#
+# Copy this file into YOUR repo at .github/workflows/eval-<provider>.yml
+# Add your API key as a repository secret named API_KEY
+# Trigger manually from GitHub Actions → Run workflow
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Evaluate — Acme Inference
+
+on:
+  workflow_dispatch:    # trigger manually from the GitHub Actions UI
+  schedule:
+    - cron: '0 6 * * 1'  # optional: run every Monday at 6am UTC
+
+jobs:
+  evaluate:
+    uses: Yu-amd/inference-eval-framework/.github/workflows/eval.yml@main
+    with:
+      base-url: "https://api.acme-inference.io/v1"
+      model: "acme/model-name"
+      provider-name: "Acme Inference"
+      input-cost-per-1m: "1.50"
+      output-cost-per-1m: "3.00"
+      concurrency-levels: "1 5 10 25"
+      iterations: "50"
+      run-soak: true
+      soak-duration-hours: "2"
+      soak-rps: "2"
+    secrets:
+      api-key: ${{ secrets.API_KEY }}
