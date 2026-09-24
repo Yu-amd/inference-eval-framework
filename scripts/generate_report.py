@@ -249,6 +249,40 @@ def build_html(provider_name, model, base_url, input_cost, output_cost,
     ttft_p99_data = json.dumps([r.get("ttft_ms", {}).get("p99") for r in (perf_data or [])])
     tps_data = json.dumps([r.get("tokens_per_sec", {}).get("p50") for r in (perf_data or [])])
 
+    # Build chart JS separately to avoid nested f-string issues (Python < 3.12)
+    if perf_data:
+        chart_js = (
+            "const LABELS = " + conc_labels + ";\n"
+            "const ORANGE = '#ff6b35';\n\n"
+            "new Chart(document.getElementById('ttftChart'), {\n"
+            "  type: 'line',\n"
+            "  data: {\n"
+            "    labels: LABELS,\n"
+            "    datasets: [\n"
+            "      { label: 'TTFT p50', data: " + ttft_p50_data + ", borderColor: ORANGE, backgroundColor: ORANGE + '20', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: ORANGE },\n"
+            "      { label: 'TTFT p99', data: " + ttft_p99_data + ", borderColor: '#94a3b8', backgroundColor: '#94a3b820', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: '#94a3b8', borderDash: [4,4] }\n"
+            "    ]\n"
+            "  },\n"
+            "  options: { responsive:true, maintainAspectRatio:false,\n"
+            "    plugins:{ legend:{ position:'top', labels:{ boxWidth:12 } } },\n"
+            "    scales:{ y:{ title:{ display:true, text:'ms' }, beginAtZero:true }, x:{ grid:{ display:false } } }\n"
+            "  }\n"
+            "});\n\n"
+            "new Chart(document.getElementById('tpsChart'), {\n"
+            "  type: 'bar',\n"
+            "  data: {\n"
+            "    labels: LABELS,\n"
+            "    datasets: [{ label: 'Tok/s p50', data: " + tps_data + ", backgroundColor: ORANGE, borderRadius: 4 }]\n"
+            "  },\n"
+            "  options: { responsive:true, maintainAspectRatio:false,\n"
+            "    plugins:{ legend:{ position:'top', labels:{ boxWidth:12 } } },\n"
+            "    scales:{ y:{ title:{ display:true, text:'tokens / second' }, beginAtZero:true }, x:{ grid:{ display:false } } }\n"
+            "  }\n"
+            "});\n"
+        )
+    else:
+        chart_js = ""
+
     # Scores (display N/A for deferred)
     def score_str(s): return f"{s:.1f} / 5.0" if s is not None else "Deferred"
 
@@ -501,37 +535,7 @@ def build_html(provider_name, model, base_url, input_cost, output_cost,
 </div>
 
 <script>
-{"" if not perf_data else f"""
-const LABELS = {conc_labels};
-const ORANGE = '#ff6b35';
-
-new Chart(document.getElementById('ttftChart'), {{
-  type: 'line',
-  data: {{
-    labels: LABELS,
-    datasets: [
-      {{ label: 'TTFT p50', data: {ttft_p50_data}, borderColor: ORANGE, backgroundColor: ORANGE + '20', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: ORANGE }},
-      {{ label: 'TTFT p99', data: {ttft_p99_data}, borderColor: '#94a3b8', backgroundColor: '#94a3b820', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: '#94a3b8', borderDash: [4,4] }}
-    ]
-  }},
-  options: {{ responsive:true, maintainAspectRatio:false,
-    plugins:{{ legend:{{ position:'top', labels:{{ boxWidth:12 }} }} }},
-    scales:{{ y:{{ title:{{ display:true, text:'ms' }}, beginAtZero:true }}, x:{{ grid:{{ display:false }} }} }}
-  }}
-}});
-
-new Chart(document.getElementById('tpsChart'), {{
-  type: 'bar',
-  data: {{
-    labels: LABELS,
-    datasets: [{{ label: 'Tok/s p50', data: {tps_data}, backgroundColor: ORANGE, borderRadius: 4 }}]
-  }},
-  options: {{ responsive:true, maintainAspectRatio:false,
-    plugins:{{ legend:{{ position:'top', labels:{{ boxWidth:12 }} }} }},
-    scales:{{ y:{{ title:{{ display:true, text:'tokens / second' }}, beginAtZero:true }}, x:{{ grid:{{ display:false }} }} }}
-  }}
-}});
-"""}
+{chart_js}
 </script>
 </body>
 </html>"""
