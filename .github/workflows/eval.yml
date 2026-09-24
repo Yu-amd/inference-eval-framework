@@ -258,9 +258,9 @@ jobs:
           name: reliability-results
           path: results/reliability/
 
-  # ── 5. Report ─────────────────────────────────────────────────────────────
+  # ── 5a. Interim Report (no soak) ──────────────────────────────────────────
   report:
-    name: Generate Report
+    name: Generate Report (interim)
     runs-on: ubuntu-latest
     needs: [performance, accuracy, cost]
     if: always()
@@ -284,11 +284,10 @@ jobs:
           gh run download ${{ github.run_id }} --name performance-results --dir results/performance/ 2>/dev/null || echo "performance-results not available"
           gh run download ${{ github.run_id }} --name accuracy-results    --dir results/accuracy/    2>/dev/null || echo "accuracy-results not available"
           gh run download ${{ github.run_id }} --name cost-results        --dir results/cost/        2>/dev/null || echo "cost-results not available"
-          gh run download ${{ github.run_id }} --name reliability-results --dir results/reliability/ 2>/dev/null || echo "reliability-results not available (soak may still be running)"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Generate HTML report
+      - name: Generate interim HTML report
         run: |
           python scripts/generate_report.py \
             --results-dir results \
@@ -300,9 +299,55 @@ jobs:
             --output report/evaluation_report.html \
             --date "$(date +%Y-%m-%d)"
 
-      - name: Upload report
+      - name: Upload interim report
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: evaluation-report
           path: report/evaluation_report.html
+
+  # ── 5b. Final Report (with soak) ──────────────────────────────────────────
+  report-final:
+    name: Generate Report (final — with soak)
+    runs-on: ubuntu-latest
+    needs: [performance, accuracy, cost, soak]
+    if: ${{ always() && (inputs.run-soak == true || inputs.run-soak == 'true') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Yu-amd/inference-eval-framework
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests urllib3
+
+      - name: Download all artifacts
+        run: |
+          mkdir -p results/performance results/accuracy results/cost results/reliability
+          gh run download ${{ github.run_id }} --name performance-results  --dir results/performance/ 2>/dev/null || echo "performance-results not available"
+          gh run download ${{ github.run_id }} --name accuracy-results     --dir results/accuracy/    2>/dev/null || echo "accuracy-results not available"
+          gh run download ${{ github.run_id }} --name cost-results         --dir results/cost/        2>/dev/null || echo "cost-results not available"
+          gh run download ${{ github.run_id }} --name reliability-results  --dir results/reliability/ 2>/dev/null || echo "reliability-results not available"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Generate final HTML report
+        run: |
+          python scripts/generate_report.py \
+            --results-dir results \
+            --provider-name "${{ inputs.provider-name }}" \
+            --model "${{ inputs.model }}" \
+            --base-url "${{ inputs.base-url }}" \
+            --input-cost "${{ inputs.input-cost-per-1m }}" \
+            --output-cost "${{ inputs.output-cost-per-1m }}" \
+            --output report/evaluation_report_final.html \
+            --date "$(date +%Y-%m-%d)"
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report-final
+          path: report/evaluation_report_final.html
