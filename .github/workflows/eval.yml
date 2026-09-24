@@ -278,33 +278,15 @@ jobs:
 
       - run: pip install requests urllib3
 
-      - name: Download performance results
-        uses: actions/download-artifact@v4
-        with:
-          name: performance-results
-          path: results/performance/
-        continue-on-error: true
-
-      - name: Download accuracy results
-        uses: actions/download-artifact@v4
-        with:
-          name: accuracy-results
-          path: results/accuracy/
-        continue-on-error: true
-
-      - name: Download cost results
-        uses: actions/download-artifact@v4
-        with:
-          name: cost-results
-          path: results/cost/
-        continue-on-error: true
-
-      - name: Download soak results
-        uses: actions/download-artifact@v4
-        with:
-          name: reliability-results
-          path: results/reliability/
-        continue-on-error: true
+      - name: Download available artifacts
+        run: |
+          mkdir -p results/performance results/accuracy results/cost results/reliability
+          gh run download ${{ github.run_id }} --name performance-results --dir results/performance/ 2>/dev/null || echo "performance-results not available"
+          gh run download ${{ github.run_id }} --name accuracy-results    --dir results/accuracy/    2>/dev/null || echo "accuracy-results not available"
+          gh run download ${{ github.run_id }} --name cost-results        --dir results/cost/        2>/dev/null || echo "cost-results not available"
+          gh run download ${{ github.run_id }} --name reliability-results --dir results/reliability/ 2>/dev/null || echo "reliability-results not available (soak may still be running)"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Generate HTML report
         run: |
