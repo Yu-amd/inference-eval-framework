@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangoboost — Inference Evaluation Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#f8fafc;--surface:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+    --green:#16a34a;--yellow:#d97706;--red:#dc2626;--blue:#2563eb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+  .header{background:linear-gradient(135deg,#1a1d27 0%,#2d3149 100%);color:#fff;padding:48px 64px 40px;}
+  .header h1{font-size:26px;font-weight:700;}
+  .header .sub{color:#94a3b8;font-size:13px;margin-top:6px;}
+  .header .meta{display:flex;gap:32px;margin-top:24px;flex-wrap:wrap;}
+  .header .meta-item strong{color:#fff;display:block;font-size:13px;}
+  .header .meta-item{font-size:12px;color:#cbd5e1;}
+  .container{max-width:1080px;margin:0 auto;padding:40px 48px;}
+  section{margin-bottom:44px;}
+  h2{font-size:18px;font-weight:700;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:20px;}
+  h3{font-size:14px;font-weight:600;margin-bottom:10px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:14px;}
+  .card-grid{display:grid;gap:14px;}
+  .card-grid-2{grid-template-columns:1fr 1fr;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{background:#f1f5f9;color:var(--muted);font-weight:600;text-align:left;padding:9px 12px;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
+  td{padding:9px 12px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+  .stat .num{font-size:26px;font-weight:700;}
+  .stat .lbl{font-size:11px;color:var(--muted);margin-top:4px;}
+  .stat.green{border-top:3px solid var(--green);} .stat.green .num{color:var(--green);}
+  .stat.yellow{border-top:3px solid var(--yellow);} .stat.yellow .num{color:var(--yellow);}
+  .stat.red{border-top:3px solid var(--red);} .stat.red .num{color:var(--red);}
+  .stat.blue{border-top:3px solid var(--blue);} .stat.blue .num{color:var(--blue);}
+  .verdict{background:var(--surface);border:1px solid #86efac;border-left:6px solid #15803d;border-radius:10px;padding:28px 32px;display:flex;gap:32px;align-items:center;margin-bottom:28px;}
+  .verdict .big{font-size:52px;font-weight:800;color:#15803d;line-height:1;}
+  .verdict .lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+  .verdict h3{font-size:18px;font-weight:700;color:#15803d;margin-bottom:8px;}
+  .score-row{display:grid;grid-template-columns:200px 60px 1fr 70px;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .score-row:last-child{border-bottom:none;}
+  .score-row.total{font-weight:700;border-top:2px solid var(--border);padding-top:12px;}
+  .bar-wrap{background:#f1f5f9;border-radius:99px;height:8px;}
+  .bar{height:8px;border-radius:99px;}
+  .chart-wrap{position:relative;height:240px;}
+  .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid var(--blue);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:14px;}
+  .warn-box{background:#fffbeb;border:1px solid #fde68a;border-left:4px solid var(--yellow);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:14px;}
+  .na-box{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-size:13px;color:var(--muted);margin-bottom:14px;}
+  .page-footer{background:#1a1d27;color:#6b7280;text-align:center;padding:24px;font-size:12px;margin-top:48px;}
+  code{background:#f1f5f9;border-radius:4px;padding:1px 6px;font-size:12px;font-family:monospace;}
+  @media print {
+    *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+    section{page-break-inside:avoid;}
+    .card{page-break-inside:avoid;}
+    .verdict{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Mangoboost — Inference Provider Evaluation</h1>
+  <div class="sub">AMD ISV Partnership Team · Inference Provider Evaluation Framework v1.0</div>
+  <div class="meta">
+    <div class="meta-item"><strong>Model</strong>minimax/MiniMax-M3</div>
+    <div class="meta-item"><strong>Base URL</strong>https://api.mangoboost.io/v1</div>
+    <div class="meta-item"><strong>Evaluation Date</strong>2026-09-25</div>
+    <div class="meta-item"><strong>Input Price</strong>$0.29/1M tokens</div>
+    <div class="meta-item"><strong>Output Price</strong>$1.20/1M tokens</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- VERDICT -->
+<section>
+  <div class="verdict">
+    <div>
+      <div class="big">4.92</div>
+      <div class="lbl">out of 5.0</div>
+    </div>
+    <div>
+      <h3>Recommend</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        Weighted composite score across 4 evaluated categories.
+        
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SCORECARD -->
+<section>
+  <h2>Overall Scorecard</h2>
+  <div class="card">
+    <div class="score-row">
+      <div>🚀 Inference Performance</div><div style="color:var(--muted);font-size:12px;">25%</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%;background:#16a34a;"></div></div>
+      <div style="font-weight:700;color:#16a34a;">5.0 / 5.0</div>
+    </div>
+    <div class="score-row">
+      <div>🛡️ Reliability &amp; Availability</div><div style="color:var(--muted);font-size:12px;">20%</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%;background:#16a34a;"></div></div>
+      <div style="font-weight:700;color:#16a34a;">5.0 / 5.0</div>
+    </div>
+    <div class="score-row">
+      <div>🎯 Output Quality &amp; Safety</div><div style="color:var(--muted);font-size:12px;">8%</div>
+      <div class="bar-wrap"><div class="bar" style="width:86%;background:#16a34a;"></div></div>
+      <div style="font-weight:700;color:#16a34a;">4.3 / 5.0</div>
+    </div>
+    <div class="score-row">
+      <div>💰 Cost &amp; Economics</div><div style="color:var(--muted);font-size:12px;">12%</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%;background:#16a34a;"></div></div>
+      <div style="font-weight:700;color:#16a34a;">5.0 / 5.0</div>
+    </div>
+    <div class="score-row total">
+      <div>Total Weighted Score</div><div style="color:var(--muted);font-size:12px;">100%</div>
+      <div class="bar-wrap"><div class="bar" style="width:98%;background:#16a34a;"></div></div>
+      <div style="font-weight:700;color:#16a34a;">4.92 / 5.0</div>
+    </div>
+  </div>
+  <div class="info-box">API compatibility, security/compliance, and support scores require manual assessment — see the <strong>Evaluation Framework</strong> for rubrics and due diligence checklist.</div>
+</section>
+
+<!-- PERFORMANCE -->
+<section>
+  <h2>1 — Inference Performance &amp; Latency <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px;">Score: 5.0 / 5.0</span></h2>
+  
+
+  
+  <div class="stat-grid">
+    <div class="stat green">
+      <div class="num">213.4ms</div><div class="lbl">TTFT p50 @ c=1</div>
+    </div>
+    <div class="stat green">
+      <div class="num">391.5ms</div><div class="lbl">TTFT p99 @ c=1</div>
+    </div>
+    <div class="stat green"><div class="num">0.0%</div><div class="lbl">Error Rate</div></div>
+    <div class="stat blue"><div class="num">160.0</div><div class="lbl">Tok/s p50 @ c=1</div></div>
+  </div>
+
+  <div class="card-grid card-grid-2">
+    <div class="card">
+      <h3>TTFT by Concurrency</h3>
+      <div class="chart-wrap"><canvas id="ttftChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Token Generation Speed (tok/s)</h3>
+      <div class="chart-wrap"><canvas id="tpsChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Full Latency Breakdown</h3>
+    <table>
+      <thead><tr><th>Concurrency</th><th>TTFT p50</th><th>TTFT p99</th><th>Tok/s p50</th><th>Error Rate</th></tr></thead>
+      <tbody><tr><td><strong>c = 1</strong></td><td>213.4ms</td><td>391.5ms</td><td>160.0</td><td><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;">0.0%</span></td></tr>
+<tr><td><strong>c = 5</strong></td><td>253.7ms</td><td>365.3ms</td><td>94.7</td><td><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;">0.0%</span></td></tr>
+<tr><td><strong>c = 10</strong></td><td>299.2ms</td><td>484.5ms</td><td>74.5</td><td><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;">0.0%</span></td></tr>
+<tr><td><strong>c = 25</strong></td><td>456.9ms</td><td>819.3ms</td><td>63.8</td><td><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;">0.0%</span></td></tr>
+</tbody>
+    </table>
+  </div>
+  
+</section>
+
+<!-- RELIABILITY -->
+<section>
+  <h2>2 — Reliability &amp; Availability <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px;">Score: 5.0 / 5.0</span></h2>
+  
+  <div class="stat-grid">
+    <div class="stat green">
+      <div class="num">100.0%</div><div class="lbl">Availability</div>
+    </div>
+    <div class="stat green">
+      <div class="num">0.0%</div><div class="lbl">Error Rate</div>
+    </div>
+    <div class="stat blue"><div class="num">14037</div><div class="lbl">Total Requests</div></div>
+    <div class="stat blue"><div class="num">289.5ms</div><div class="lbl">Latency p50 (soak)</div></div>
+  </div>
+  
+</section>
+
+<!-- ACCURACY -->
+<section>
+  <h2>3 — Output Quality &amp; Safety <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px;">Score: 4.3 / 5.0</span></h2>
+  
+  <div class="stat-grid">
+    <div class="stat green">
+      <div class="num">10/10</div><div class="lbl">Factuality</div>
+    </div>
+    <div class="stat blue"><div class="num">4/5</div><div class="lbl">Instruction Following</div></div>
+    <div class="stat green">
+      <div class="num">5/5</div><div class="lbl">Safety Refusals</div>
+    </div>
+    <div class="stat yellow">
+      <div class="num">0.433</div><div class="lbl">Semantic Overlap</div>
+    </div>
+  </div>
+  
+</section>
+
+<!-- COST -->
+<section>
+  <h2>4 — Cost &amp; Economics <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px;">Score: 5.0 / 5.0</span></h2>
+  
+  <div class="stat-grid">
+    <div class="stat green">
+      <div class="num">88.3%</div><div class="lbl">Savings vs GPT-4o</div>
+    </div>
+    <div class="stat blue"><div class="num">$72.6</div><div class="lbl">Provider/month (class., 1M req)</div></div>
+    <div class="stat blue"><div class="num">$622.5</div><div class="lbl">GPT-4o/month (same workload)</div></div>
+  </div>
+  
+</section>
+
+<!-- MANUAL ASSESSMENT REMINDER -->
+<section>
+  <h2>5 — Manual Assessment Required</h2>
+  <div class="warn-box">
+    The following categories require vendor documentation review and/or direct conversation with the provider. Use the scoring rubrics in the <strong>Evaluation Framework</strong> document to complete these scores.
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Category</th><th>Weight</th><th>Items to Assess</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td>API Completeness &amp; Compatibility</td><td>15%</td><td>Tool calling, JSON mode, model pinning, batch API, SDK</td><td style="color:var(--muted);">___ / 5</td></tr>
+        <tr><td>Security &amp; Compliance</td><td>15%</td><td>SOC 2, data retention policy, encryption, SSL cert, GDPR DPA</td><td style="color:var(--muted);">___ / 5</td></tr>
+        <tr><td>Cost (commercial terms)</td><td>(12%)</td><td>Volume discounts, rate limit documentation, contract terms, SLA credits</td><td style="color:var(--muted);">___ / 5</td></tr>
+        <tr><td>Support &amp; Operations</td><td>5%</td><td>Support SLA, status page, deprecation policy, TAM availability</td><td style="color:var(--muted);">___ / 5</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<div class="page-footer">
+  Generated by Inference Provider Evaluation Framework v1.0 · AMD ISV Partnership Team · 2026-09-25
+</div>
+
+<script>
+const LABELS = ["c = 1", "c = 5", "c = 10", "c = 25"];
+const ORANGE = '#ff6b35';
+
+new Chart(document.getElementById('ttftChart'), {
+  type: 'line',
+  data: {
+    labels: LABELS,
+    datasets: [
+      { label: 'TTFT p50', data: [213.4, 253.7, 299.2, 456.9], borderColor: ORANGE, backgroundColor: ORANGE + '20', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: ORANGE },
+      { label: 'TTFT p99', data: [391.5, 365.3, 484.5, 819.3], borderColor: '#94a3b8', backgroundColor: '#94a3b820', tension: 0.3, fill: false, pointRadius: 5, pointBackgroundColor: '#94a3b8', borderDash: [4,4] }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'top', labels:{ boxWidth:12 } } },
+    scales:{ y:{ title:{ display:true, text:'ms' }, beginAtZero:true }, x:{ grid:{ display:false } } }
+  }
+});
+
+new Chart(document.getElementById('tpsChart'), {
+  type: 'bar',
+  data: {
+    labels: LABELS,
+    datasets: [{ label: 'Tok/s p50', data: [160.0, 94.7, 74.5, 63.8], backgroundColor: ORANGE, borderRadius: 4 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ position:'top', labels:{ boxWidth:12 } } },
+    scales:{ y:{ title:{ display:true, text:'tokens / second' }, beginAtZero:true }, x:{ grid:{ display:false } } }
+  }
+});
+
+</script>
+</body>
+</html>
